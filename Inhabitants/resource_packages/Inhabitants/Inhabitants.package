@@ -1,0 +1,11 @@
+mod = [
+	"Inhabitants"
+]
+
+package = [
+	"resource_packages/Inhabitants/Inhabitants"
+]
+
+lua = [
+	"scripts/mods/Inhabitants/*"
+]
