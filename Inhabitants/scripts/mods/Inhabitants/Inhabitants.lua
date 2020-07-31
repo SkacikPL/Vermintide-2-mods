@@ -12,13 +12,23 @@ SkacikPL - https://www.skacikpl.pl/
 --]]
 local mod = get_mod("Inhabitants")
 
+local unit_templates = require("scripts/network/unit_extension_templates") --Define our own unit template.
+unit_templates.inhabitant = {
+	go_type = "prop_unit",
+	self_owned_extensions = {
+		"GenericUnitInteractableExtension"
+--		"DialogueActorExtension" --Unused at the moment
+	},
+	num_self_owned_extensions = 1
+}
+
 --Store initial data as well as housing some dynamically filled info.
 local CharacterData = {
-	witch_hunter = {position = Vector3Box(3.71343, -5.16817, 5.17837), rotation = 7, anim = "store_idle"},
-	bright_wizard  = {position = Vector3Box(-5.73444, -3.3651, 8.73734), rotation = 5, anim = "store_idle"},
-	dwarf_ranger = {position = Vector3Box(-2.52041, 5.39538, 5.02771), rotation = 3.5, anim = "store_idle"},
-	wood_elf = {position = Vector3Box(-6.9488, 10.4792, 8.58799), rotation = 4.3, anim = "prologue_stand"},
-	empire_soldier = {position = Vector3Box(-5.35476, -2.50643, 5.00663), rotation = 5.2, anim = "store_idle"}
+	witch_hunter = {position = Vector3Box(3.71343, -5.16817, 5.17837), rotation = 7, anim = "store_idle", name = "witch_hunter_short"},
+	bright_wizard  = {position = Vector3Box(-5.73444, -3.3651, 8.73734), rotation = 5, anim = "store_idle", name = "bright_wizard_short"},
+	dwarf_ranger = {position = Vector3Box(-2.52041, 5.39538, 5.02771), rotation = 3.5, anim = "store_idle", name = "dwarf_ranger_short"},
+	wood_elf = {position = Vector3Box(-6.9488, 10.4792, 8.58799), rotation = 4.3, anim = "prologue_stand", name = "wood_elf_short"},
+	empire_soldier = {position = Vector3Box(-5.35476, -2.50643, 5.00663), rotation = 5.2, anim = "store_idle", name = "empire_soldier_short"}
 }
 
 --Store spawned unit references and other unit relevant stuff.
@@ -97,7 +107,7 @@ local function LoadPackages(packages_to_load) --Load passed packages
 	end		
 end
 
-local function CheckSpawnUnspawn() --Triggered every time local/remote player unit is spawned, run a check for existing players and remove/queue spawn NPC units if necessary.
+local function CheckSpawnUnspawn() --Host sided logic triggered by any player unit spawn/unspawn to determine NPCs to spawn/unspawn, result is RPCd to clients.
 	local players = Managers.player:players()
 	local playercharacters = {}
 	local world = Managers.world:world("level_world")
@@ -108,6 +118,7 @@ local function CheckSpawnUnspawn() --Triggered every time local/remote player un
 			table.insert(playercharacters, profile)		
 			
 			if SpawnedUnits[profile] ~= nil then
+				mod:network_send("rpc_inhabitants_unspawn", "others", profile)
 				if Unit.alive(SpawnedUnits[profile].hat) then 
 					World.destroy_unit(world,SpawnedUnits[profile].hat) 
 				end
@@ -122,13 +133,11 @@ local function CheckSpawnUnspawn() --Triggered every time local/remote player un
 		end
 	end
 	
-	for character,data in pairs(CharacterData) do
-		CharacterData[character].shouldspawn = false
-		
+	for character,data in pairs(CharacterData) do		
 		local profile_index = FindProfileIndex(character)
 		local profile = SPProfiles[profile_index]
 		
-		if not table.contains(playercharacters, profile.display_name) and #playercharacters ~= 0 and SpawnedUnits[profile.display_name].body == nil then
+		if not table.contains(playercharacters, profile.display_name) and SpawnedUnits[profile.display_name].body == nil then
 			local hero_attributes = Managers.backend:get_interface("hero_attributes")
 			local career_index = hero_attributes:get(profile.display_name, "career")
 			local career = profile.careers[career_index]			
@@ -144,12 +153,13 @@ local function CheckSpawnUnspawn() --Triggered every time local/remote player un
 			local unit_name = skin_data.third_person
 			local hat_unit_name = ItemMasterList[hat_name].unit
 			local material_changes = skin_data.material_changes
+			
 			table.insert(package_names, unit_name)
 			table.insert(package_names, hat_unit_name)			
 
 			if material_changes then
 				local material_package = material_changes.package_name
-				table.insert(package_names, material_package)			
+				table.insert(package_names, material_package)				
 			end
 			
 			local hat_material_changes = hat_item_data.character_material_changes
@@ -170,25 +180,39 @@ local function CheckSpawnUnspawn() --Triggered every time local/remote player un
 			CharacterData[character].hatname = hat_name
 			CharacterData[character].hat = hat_unit_name
 			CharacterData[character].skin_data = skin_data
-			CharacterData[character].career_index = 1
+			CharacterData[character].career_index = career_index
 			CharacterData[character].shouldspawn = true
 			CharacterData[character].name = profile.ingame_short_display_name
-		
+			CharacterData[character].skinname = skin_name
 		end
 		
+		local sync_data = {
+			CharacterData[character].hatname,
+			CharacterData[character].skinname
+		}
+		
+		if CharacterData[character].skinname ~= nil then mod:network_send("rpc_inhabitants_spawn", "others", character, sync_data) end
+		
 	end	
+		
 		LoadPackages(package_names)
 		load_in_progress = true
 end
 
 local function SpawnNPC(name) --Main function to spawn NPC.
+
+	local dialogue_init_data = {
+		dialogue_context_system = {
+			profile = name
+		}
+	}
+
 	local skin_data = CharacterData[name].skin_data
 	local world = Managers.world:world("level_world")
 	local unit_name = skin_data.third_person
 	local tint_data = skin_data.color_tint
-	local character_unit = Managers.state.unit_spawner:spawn_local_unit_with_extensions(unit_name, "interaction_unit", nil, Vector3Box.unbox(CharacterData[name].position), Quaternion.axis_angle(Vector3.up(), CharacterData[name].rotation)) --World.spawn_unit(world, unit_name, Vector3Box.unbox(CharacterData[name].position), Quaternion.axis_angle(Vector3.up(), CharacterData[name].rotation))
+	local character_unit = Managers.state.unit_spawner:spawn_local_unit_with_extensions(unit_name, "inhabitant", dialogue_init_data, Vector3Box.unbox(CharacterData[name].position), Quaternion.axis_angle(Vector3.up(), CharacterData[name].rotation)) --World.spawn_unit(world, unit_name, Vector3Box.unbox(CharacterData[name].position), Quaternion.axis_angle(Vector3.up(), CharacterData[name].rotation))
 	local interaction_extension = ScriptUnit.has_extension(character_unit, "interactable_system")
-	local outline_extension = ScriptUnit.has_extension(character_unit, "outline_system")
 	local material_changes = skin_data.material_changes
 	local hat_template = ItemHelper.get_template_by_item_name(CharacterData[name].hatname)
 	local scene_graph_links = {}
@@ -227,16 +251,65 @@ local function SpawnNPC(name) --Main function to spawn NPC.
 		CosmeticUtils.color_tint_unit(character_unit, name, gradient_variation, gradient_value)
 	end	
 	
-	interaction_extension.interactable_type = "smartobject"
-	outline_extension.set_method("never")
+	interaction_extension.interactable_type = "ihnabitant"
+	
 	Unit.set_data(character_unit, "interaction_data", "hud_interaction_action", "interact_talk")
 	Unit.set_data(character_unit, "interaction_data", "hud_description", CharacterData[name].name)
+	Unit.set_data(character_unit, "inhabitant_data", "name", name)
 	
 	Unit.set_flow_variable(character_unit, "current_overcharge", 0)
 	Unit.flow_event(character_unit, "lua_update_overcharge")	
 	
 	Unit.animation_event(character_unit, CharacterData[name].anim)	
+	CharacterData[name].shouldspawn = false
 end
+
+function mod.unspawn_from_host(sender, who) --RPC from server to all clients to destroy given unit.
+	local world = Managers.world:world("level_world")
+	if SpawnedUnits[who] ~= nil then
+		if Unit.alive(SpawnedUnits[who].hat) then 
+			World.destroy_unit(world,SpawnedUnits[who].hat) 
+		end
+	
+		if Unit.alive(SpawnedUnits[who].body) then 
+			Managers.state.unit_spawner.entity_manager:unregister_unit(SpawnedUnits[who].body)
+			POSITION_LOOKUP[SpawnedUnits[who].body] = nil
+			World.destroy_unit(world,SpawnedUnits[who].body) 
+			SpawnedUnits[who] = {} 
+		end
+	end
+end
+
+function mod.spawn_from_host(sender, who, data) --RPC from server to all clients to spawn given unit.
+	local skindata = Cosmetics[data[2]]
+	CharacterData[who].hatname = data[1]
+	CharacterData[who].skin_data = skindata
+	CharacterData[who].hat = ItemMasterList[data[1]].unit
+	
+	table.insert(package_names, skindata.third_person)
+	table.insert(package_names, CharacterData[who].hat)	
+	
+	local material_changes = skindata.material_changes
+	
+	if material_changes then
+		local material_package = material_changes.package_name
+		table.insert(package_names, material_package)				
+	end			
+	
+	CharacterData[who].hidehat = false
+	
+	if skindata.always_hide_attachment_slots ~= nil then
+		for _, slot_name in ipairs(skindata.always_hide_attachment_slots) do
+			if slot_name == "slot_hat" then CharacterData[who].hidehat = true end
+		end
+	end	
+	
+	if SpawnedUnits[who].body == nil then CharacterData[who].shouldspawn = true end
+	
+	LoadPackages(package_names)
+	load_in_progress = true	
+end
+
 --[[ Development utility, not needed in release.
 function mod.posrot()
 	local playerunit = Managers.player:local_player().player_unit
@@ -248,9 +321,10 @@ end
 --]]
 mod:hook_safe(BulldozerPlayer, "spawn_unit", CheckSpawnUnspawn) --Hook local player spawn to trigger the check.
 mod:hook_safe(RemotePlayer, "set_player_unit", CheckSpawnUnspawn) --Hook remote player spawn to trigger the check.
+mod:hook_safe(RemotePlayer, "destroy", CheckSpawnUnspawn) --Hook remote player disconnection to trigger the check.
 --There are no bots in keep so no need to hook bot player spawn.
 
-mod:hook(GenericUnitInteractorExtension, "start_interaction", function (func, self, hold_input, interactable_unit, interaction_type, ...) --Requires full replacement to remove assert for interacting with local (non-replicated) units.
+mod:hook(GenericUnitInteractorExtension, "start_interaction", function (func, self, hold_input, interactable_unit, interaction_type, ...) --Requires full replacement to bypass assert for interacting with local (non-replicated) units.
 	InteractionHelper.printf("[GenericUnitInteractorExtension] start_interaction(interactable_unit=%s, interaction_type=%s)", tostring(interactable_unit), tostring(interaction_type))
 
 	local interaction_context = self.interaction_context
@@ -266,9 +340,15 @@ mod:hook(GenericUnitInteractorExtension, "start_interaction", function (func, se
 	local network_manager = Managers.state.network
 	local interactor_go_id = Managers.state.unit_storage:go_id(unit)
 	local interactable_go_id, is_level_unit = network_manager:game_object_or_level_id(interaction_context.interactable_unit)
+	
+	if InteractionDefinitions[interaction_type] == InteractionDefinitions.ihnabitant then --Do an early return for inhabitants.
+		return 
+	end
 
 	if interactor_go_id == nil or interactable_go_id == nil then
-		--Assert was removed here, unit with no game object ID will most likely be our local, non-replicated NPC - no need to panic.
+		InteractionHelper.printf("[GenericUnitInteractorExtension] start_interaction failed due to no id for interactor=%s or interactable=%s", tostring(self.unit), tostring(self.interaction_context.interactable_unit))
+		fassert(LEVEL_EDITOR_TEST)
+
 		return
 	end
 
@@ -305,6 +385,13 @@ mod.update = function(dt)
 		end
 
 		if all_packages_loaded then
+			if not Managers.player.is_server then
+				for id, player in pairs(Managers.player:human_players()) do
+					local profile = SPProfiles[Managers.state.spawn._profile_synchronizer:profile_by_peer(player.peer_id, player._local_player_id)].display_name
+					CharacterData[profile].shouldspawn = false
+				end			
+			end
+		
 			for character,data in pairs(CharacterData) do
 				if CharacterData[character].shouldspawn == true then SpawnNPC(character) end
 			end
@@ -316,7 +403,7 @@ mod.update = function(dt)
 end
 
 mod.on_game_state_changed = function(status, state) --Reinitialize all tracked locals and unreference loaded packages so they can be potentially unloaded.
-	if state == "StateIngame" and string.match(Managers.state.game_mode:level_key(), "inn_level") then mod:enable_all_hooks() else mod:disable_all_hooks() end
+--	if state == "StateIngame" and string.match(Managers.state.game_mode:level_key(), "inn_level") and Managers.player.is_server then mod:enable_all_hooks() else mod:disable_all_hooks() end
 	
 	package_names = {}
 	SpawnedUnits = {
@@ -339,3 +426,46 @@ end
 	Initialization
 --]]
 --mod:command("pos", "", mod.posrot) --Development utility, not needed in release.
+mod:network_register("rpc_inhabitants_spawn", function(sender, who, data) mod.spawn_from_host(sender, who, data) end) --RPC to spawn NPC from host data.
+mod:network_register("rpc_inhabitants_unspawn", function(sender, who) mod.unspawn_from_host(sender, who) end) --RPC to unspawn NPC.
+
+--Define our own interaction type.
+InteractionDefinitions.ihnabitant = {
+	config = {
+		show_weapons = true,
+		duration = 0,
+		hold = false,
+		swap_to_3p = false
+	},
+	server = {
+		start = function (world, interactor_unit, interactable_unit, data, config, t)
+			return 
+		end,
+		stop = function (world, interactor_unit, interactable_unit, data, config, t, result)
+			return
+		end,
+		can_interact = function (interactor_unit, interactable_unit)
+			return true
+		end
+	},
+	client = {
+		start = function (world, interactor_unit, interactable_unit, data, config, t)
+			return
+		end,
+		update = function (world, interactor_unit, interactable_unit, data, config, dt, t)
+			return
+		end,
+		stop = function (world, interactor_unit, interactable_unit, data, config, t, result)
+			return
+		end,
+		get_progress = function (data, config, t)
+				return 0
+		end,
+		can_interact = function (interactor_unit, interactable_unit, data, config)
+			return true
+		end,
+		hud_description = function (interactable_unit, data, config)
+			return Unit.get_data(interactable_unit, "interaction_data", "hud_description"), Unit.get_data(interactable_unit, "interaction_data", "hud_interaction_action")
+		end
+	}
+}
