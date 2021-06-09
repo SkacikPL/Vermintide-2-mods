@@ -1,0 +1,11 @@
+mod = [
+	"Flashlight"
+]
+
+package = [
+	"resource_packages/Flashlight/Flashlight"
+]
+
+lua = [
+	"scripts/mods/Flashlight/*"
+]

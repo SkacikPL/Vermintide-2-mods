@@ -1,0 +1,161 @@
+
+nodes = [
+	{
+		id = "d5093a31-487d-486c-8028-55bdb617bdc0"
+		in_variables = {
+			group = {
+				type = "id"
+			}
+			unit = {
+				node = "fbae4664-982f-4f0d-a3db-af1e0ed7a6b8"
+				type = "unit"
+				variable = "unit"
+			}
+			visible = {
+				type = "bool"
+			}
+		}
+		type = "set_unit_visibility"
+		variable_values = {
+			group = "light"
+			unit = null
+			visible = false
+		}
+	}
+	{
+		id = "3ae588a6-4d71-4067-9fb1-8023c875dcda"
+		out_events = {
+			out = [
+				{
+					event = 0
+					id = "d5093a31-487d-486c-8028-55bdb617bdc0:0"
+					node = "d5093a31-487d-486c-8028-55bdb617bdc0"
+				}
+			]
+		}
+		type = "external_event"
+		variable_values = {
+			event_name = "hide_helper_mesh"
+		}
+	}
+	{
+		id = "fbae4664-982f-4f0d-a3db-af1e0ed7a6b8"
+		out_events = {
+			out = [
+				{
+					event = 0
+					id = "d5093a31-487d-486c-8028-55bdb617bdc0:0"
+					node = "d5093a31-487d-486c-8028-55bdb617bdc0"
+				}
+			]
+		}
+		type = "unit_spawned"
+		variable_values = {
+			unit = null
+		}
+	}
+	{
+		id = "c2a9a655-e58a-44f3-808c-0d8bdd7ba4cc"
+		out_events = {
+			out = [
+				{
+					event = 0
+					id = "e14c5d7b-e4f6-4302-81cd-0c0f24e5c2a3:0"
+					node = "e14c5d7b-e4f6-4302-81cd-0c0f24e5c2a3"
+				}
+			]
+		}
+		type = "external_event"
+		variable_values = {
+			event_name = "enable"
+		}
+	}
+	{
+		id = "e14c5d7b-e4f6-4302-81cd-0c0f24e5c2a3"
+		in_variables = {
+			enabled = {
+				type = "bool"
+			}
+			light = {
+				node = "dafe8813-3c63-45a2-a7a4-4bf41141e83e"
+				type = "light"
+				variable = "light"
+			}
+			unit = {
+				node = "fbae4664-982f-4f0d-a3db-af1e0ed7a6b8"
+				type = "unit"
+				variable = "unit"
+			}
+		}
+		type = "set_light_enabled"
+		variable_values = {
+			enabled = true
+			light = null
+			unit = null
+		}
+	}
+	{
+		id = "08ec5bd8-0c02-418d-85b6-8ac65e71a285"
+		in_variables = {
+			enabled = {
+				type = "bool"
+			}
+			light = {
+				node = "dafe8813-3c63-45a2-a7a4-4bf41141e83e"
+				type = "light"
+				variable = "light"
+			}
+			unit = {
+				node = "fbae4664-982f-4f0d-a3db-af1e0ed7a6b8"
+				type = "unit"
+				variable = "unit"
+			}
+		}
+		type = "set_light_enabled"
+		variable_values = {
+			enabled = false
+			light = null
+			unit = null
+		}
+	}
+	{
+		id = "aad44f66-b33f-43dd-af30-a26900cd5b19"
+		out_events = {
+			out = [
+				{
+					event = 0
+					id = "08ec5bd8-0c02-418d-85b6-8ac65e71a285:0"
+					node = "08ec5bd8-0c02-418d-85b6-8ac65e71a285"
+				}
+			]
+		}
+		type = "external_event"
+		variable_values = {
+			event_name = "disable"
+		}
+	}
+	{
+		id = "dafe8813-3c63-45a2-a7a4-4bf41141e83e"
+		in_variables = {
+			light_name = {
+				type = "string"
+			}
+			unit = {
+				node = "fbae4664-982f-4f0d-a3db-af1e0ed7a6b8"
+				type = "unit"
+				variable = "unit"
+			}
+		}
+		out_variables = {
+			light = {
+				type = "light"
+			}
+		}
+		type = "get_unit_light"
+		variable_values = {
+			light = null
+			light_name = "omni"
+			unit = null
+		}
+	}
+]
