@@ -1,0 +1,11 @@
+mod = [
+	"InspectAnims"
+]
+
+package = [
+	"resource_packages/InspectAnims/InspectAnims"
+]
+
+lua = [
+	"scripts/mods/InspectAnims/*"
+]
