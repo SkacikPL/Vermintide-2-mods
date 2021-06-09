@@ -1,0 +1,11 @@
+mod = [
+	"FBA"
+]
+
+package = [
+	"resource_packages/FBA/FBA"
+]
+
+lua = [
+	"scripts/mods/FBA/*"
+]

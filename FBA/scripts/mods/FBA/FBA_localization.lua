@@ -1,0 +1,32 @@
+return {
+	mod_description = {
+		en = "Enables full body awareness for first person perspective.",
+		fr = "Permet une prise de conscience totale du corps pour une perspective à la première personne.",
+		de = "Ermöglicht die Ganzkörperwahrnehmung für die Ich-Perspektive.",
+		es = "Permite la plena conciencia del cuerpo para la perspectiva en primera persona.",
+		ru = "Обеспечивает полную осведомленность о телесности для перспективы первого лица.",
+		it = "Consente la piena consapevolezza del corpo per la prospettiva in prima persona.",
+		pl = "Włącza pełną świadomość ciała dla perspektywy pierwszoosobowej.",
+		["br-pt"] = "Permite a conscientização total do corpo para a perspectiva da primeira pessoa.",
+	},
+	forcefirstperson_option_name = {
+		en = "Force first person perspective",
+		fr = "Forcer la perspective à la première personne",
+		de = "Erste-Person-Perspektive erzwingen",
+		es = "Forzar perspectiva en primera persona",
+		ru = "Персистентность",
+		it = "Forza la prospettiva in prima persona",
+		pl = "Wymuś perspektywę pierwszoosobową",
+		["br-pt"] = "Forçar a perspectiva da primeira pessoa",		
+	},
+	forcefirstperson_option_tooltip = {
+		en = "All gameplay third person elements will be played in first person.",
+		fr = "Tous les éléments de jeu à la troisième personne seront joués à la première personne.",
+		de = "Alle Elemente der dritten Person des Spiels werden in der ersten Person gespielt.",
+		es = "Todos los elementos de juego de tercera persona se jugarán en primera persona.",
+		ru = "Все элементы третьего лица геймплея будут воспроизводиться на первом лице.",
+		it = "Tutti gli elementi di gioco in terza persona verranno riprodotti in prima persona.",
+		pl = "Wszystkie trzecioosobowe elementy rozgrywki będą rozgrywane w pierwszej osobie.",
+		["br-pt"] = "Todos os elementos da terceira pessoa do jogo serão jogados em primeira pessoa.",		
+	},
+}
