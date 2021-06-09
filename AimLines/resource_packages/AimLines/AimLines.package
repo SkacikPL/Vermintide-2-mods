@@ -1,0 +1,11 @@
+mod = [
+	"AimLines"
+]
+
+package = [
+	"resource_packages/AimLines/AimLines"
+]
+
+lua = [
+	"scripts/mods/AimLines/*"
+]
