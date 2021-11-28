@@ -24,11 +24,31 @@ unit_templates.inhabitant = {
 
 --Store initial data as well as housing some dynamically filled info.
 local CharacterData = {
-	witch_hunter = {position = Vector3Box(3.71343, -5.16817, 5.17837), rotation = 7, anim = "store_idle", name = "witch_hunter_short"},
-	bright_wizard  = {position = Vector3Box(-5.73444, -3.3651, 8.73734), rotation = 5, anim = "store_idle", name = "bright_wizard_short"},
-	dwarf_ranger = {position = Vector3Box(-2.52041, 5.39538, 5.02771), rotation = 3.5, anim = "store_idle", name = "dwarf_ranger_short"},
-	wood_elf = {position = Vector3Box(-6.9488, 10.4792, 8.58799), rotation = 4.3, anim = "prologue_stand", name = "wood_elf_short"},
-	empire_soldier = {position = Vector3Box(-5.35476, -2.50643, 5.00663), rotation = 5.2, anim = "store_idle", name = "empire_soldier_short"}
+	witch_hunter = {
+	["inn_level"] = {position = Vector3Box(4.46292, -6.00805, 5.18917), rotation = 7, anim = "store_idle"},
+	["morris_hub"] = {position = Vector3Box(-3.18502, -1.50953, -4.79632), rotation = 5, anim = "store_idle"},
+	["dlc_morris_map"] = {position = Vector3Box(0.8, 3.6, 0), rotation = 3.6, anim = "store_idle"},
+	name = "witch_hunter_short"},
+	bright_wizard  = {
+	["inn_level"] = {position = Vector3Box(-3.19908, -6.3241, 5.2382), rotation = 5.5, anim = "store_idle"},
+	["morris_hub"] = {position = Vector3Box(1.72381, -3.3347, -4.80316), rotation = 0.4, anim = "store_idle"},
+	["dlc_morris_map"] = {position = Vector3Box(2, 3.5, 0), rotation = 3.2, anim = "store_idle"},
+	name = "bright_wizard_short"},
+	dwarf_ranger = {
+	["inn_level"] = {position = Vector3Box(-2.52041, 5.39538, 5.02771), rotation = 3.5, anim = "store_idle"},
+	["morris_hub"] = {position = Vector3Box(2.7957, 1.08095, -4.81466), rotation = 2.1, anim = "store_idle"},
+	["dlc_morris_map"] = {position = Vector3Box(3, 1.3, 0), rotation = 0.2, anim = "store_idle"},
+	name = "dwarf_ranger_short"},
+	wood_elf = {
+	["inn_level"] = {position = Vector3Box(-6.9488, 10.4792, 8.58799), rotation = 4.3, anim = "prologue_stand"},
+	["morris_hub"] = {position = Vector3Box(-6.3, 0.7, -4.91401), rotation = 6, anim = "prologue_stand"},
+	["dlc_morris_map"] = {position = Vector3Box(0.3, 2.6, 0), rotation = 4.6, anim = "store_idle"},
+	name = "wood_elf_short"},
+	empire_soldier = {
+	["inn_level"] = {position = Vector3Box(-4.57805, -2.88616, 5.00722), rotation = 5.6, anim = "store_idle"},
+	["morris_hub"] = {position = Vector3Box(2.99967, -1.81332, -4.80316), rotation = 1, anim = "store_idle"},
+	["dlc_morris_map"] = {position = Vector3Box(4, 3.4, 0), rotation = 2.3, anim = "store_idle"},
+	name = "empire_soldier_short"}
 }
 
 --Store spawned unit references and other unit relevant stuff.
@@ -112,22 +132,24 @@ local function CheckSpawnUnspawn() --Host sided logic triggered by any player un
 	local playercharacters = {}
 	local world = Managers.world:world("level_world")
 
-	for id, player in pairs(players) do
-		if Managers.state.spawn._profile_synchronizer:profile_by_peer(player.peer_id, player._local_player_id) ~= nil then
-			local profile = SPProfiles[Managers.state.spawn._profile_synchronizer:profile_by_peer(player.peer_id, player._local_player_id)].display_name
-			table.insert(playercharacters, profile)		
-			
-			if SpawnedUnits[profile] ~= nil then
-				mod:network_send("rpc_inhabitants_unspawn", "others", profile)
-				if Unit.alive(SpawnedUnits[profile].hat) then 
-					World.destroy_unit(world,SpawnedUnits[profile].hat) 
-				end
-			
-				if Unit.alive(SpawnedUnits[profile].body) then 
-					Managers.state.unit_spawner.entity_manager:unregister_unit(SpawnedUnits[profile].body)
-					POSITION_LOOKUP[SpawnedUnits[profile].body] = nil
-					World.destroy_unit(world,SpawnedUnits[profile].body) 
-					SpawnedUnits[profile] = {} 
+	if not (string.match(Managers.state.game_mode:level_key(), "dlc_morris_map")) then
+		for id, player in pairs(players) do
+			if Managers.state.spawn._profile_synchronizer:profile_by_peer(player.peer_id, player._local_player_id) ~= nil then
+				local profile = SPProfiles[Managers.state.spawn._profile_synchronizer:profile_by_peer(player.peer_id, player._local_player_id)].display_name
+				table.insert(playercharacters, profile)		
+				
+				if SpawnedUnits[profile] ~= nil then
+					mod:network_send("rpc_inhabitants_unspawn", "others", profile)
+					if Unit.alive(SpawnedUnits[profile].hat) then 
+						World.destroy_unit(world,SpawnedUnits[profile].hat) 
+					end
+				
+					if Unit.alive(SpawnedUnits[profile].body) then 
+						Managers.state.unit_spawner.entity_manager:unregister_unit(SpawnedUnits[profile].body)
+						POSITION_LOOKUP[SpawnedUnits[profile].body] = nil
+						World.destroy_unit(world,SpawnedUnits[profile].body) 
+						SpawnedUnits[profile] = {} 
+					end
 				end
 			end
 		end
@@ -199,29 +221,38 @@ local function CheckSpawnUnspawn() --Host sided logic triggered by any player un
 		load_in_progress = true
 end
 
-local function SpawnNPC(name) --Main function to spawn NPC.
+local function DeusMapHack()
+	if Managers.player.is_server then
+		CheckSpawnUnspawn()
+	else
+		mod:network_send("rpc_inhabitants_deusmap_init", "others")
+	end
+end
 
+local function SpawnNPC(name) --Main function to spawn NPC.
 	local dialogue_init_data = {
 		dialogue_context_system = {
 			profile = name
 		}
 	}
 
-	local skin_data = CharacterData[name].skin_data
+	local character = CharacterData[name]
+	local skin_data = character.skin_data
 	local world = Managers.world:world("level_world")
 	local unit_name = skin_data.third_person
 	local tint_data = skin_data.color_tint
-	local character_unit = Managers.state.unit_spawner:spawn_local_unit_with_extensions(unit_name, "inhabitant", dialogue_init_data, Vector3Box.unbox(CharacterData[name].position), Quaternion.axis_angle(Vector3.up(), CharacterData[name].rotation)) --World.spawn_unit(world, unit_name, Vector3Box.unbox(CharacterData[name].position), Quaternion.axis_angle(Vector3.up(), CharacterData[name].rotation))
+	local levelkey = Managers.state.game_mode:level_key()
+	local character_unit = Managers.state.unit_spawner:spawn_local_unit_with_extensions(unit_name, "inhabitant", dialogue_init_data, Vector3Box.unbox(character[levelkey].position), Quaternion.axis_angle(Vector3.up(), character[levelkey].rotation))
 	local interaction_extension = ScriptUnit.has_extension(character_unit, "interactable_system")
 	local material_changes = skin_data.material_changes
-	local hat_template = ItemHelper.get_template_by_item_name(CharacterData[name].hatname)
+	local hat_template = ItemHelper.get_template_by_item_name(character.hatname)
 	local scene_graph_links = {}
 	
 	SpawnedUnits[name].body = character_unit
 	
 	Unit.flow_event(character_unit, "lua_spawn_attachments")
-	if not CharacterData[name].hidehat then
-		local hat_unit = World.spawn_unit(world, CharacterData[name].hat)
+	if not character.hidehat then
+		local hat_unit = World.spawn_unit(world, character.hat)
 		
 		Unit.flow_event(hat_unit, "lua_attachment_unhidden")
 		Unit.flow_event(character_unit, hat_template.show_attachments_event)
@@ -254,14 +285,14 @@ local function SpawnNPC(name) --Main function to spawn NPC.
 	interaction_extension.interactable_type = "ihnabitant"
 	
 	Unit.set_data(character_unit, "interaction_data", "hud_interaction_action", "interact_talk")
-	Unit.set_data(character_unit, "interaction_data", "hud_description", CharacterData[name].name)
+	Unit.set_data(character_unit, "interaction_data", "hud_description", character.name)
 	Unit.set_data(character_unit, "inhabitant_data", "name", name)
 	
 	Unit.set_flow_variable(character_unit, "current_overcharge", 0)
 	Unit.flow_event(character_unit, "lua_update_overcharge")	
 	
-	Unit.animation_event(character_unit, CharacterData[name].anim)	
-	CharacterData[name].shouldspawn = false
+	Unit.animation_event(character_unit, character[levelkey].anim)	
+	character.shouldspawn = false
 end
 
 function mod.unspawn_from_host(sender, who) --RPC from server to all clients to destroy given unit.
@@ -310,10 +341,27 @@ function mod.spawn_from_host(sender, who, data) --RPC from server to all clients
 	load_in_progress = true	
 end
 
+function mod.requestsync(sender, who) --RPC from client to host to request sync.
+	CheckSpawnUnspawn()
+end
+
 --[[ Development utility, not needed in release.
 function mod.posrot()
 	local playerunit = Managers.player:local_player().player_unit
-	mod:echo("Position: " .. tostring(Unit.world_position(playerunit, 0)) .. " Rotation: " .. tostring(Quaternion.angle(Unit.world_rotation(playerunit, 0))))
+	local pos
+	local rot
+	
+	if(Unit.alive(playerunit)) then
+		pos = Unit.world_position(playerunit, 0)
+		rot = Unit.world_rotation(playerunit, 0)
+	else
+		local viewport = ScriptWorld.viewport(Managers.world:world("level_world"), Managers.player:local_player().viewport_name)
+		local camera = ScriptViewport.camera(viewport)	
+		pos = Camera.world_position(camera)
+		rot = Camera.world_rotation(camera)
+	end
+	
+	mod:echo("Position: " .. tostring(pos) .. " Rotation: " .. tostring(Quaternion.angle(rot)))
 end
 --]]
 --[[
@@ -322,6 +370,7 @@ end
 mod:hook_safe(BulldozerPlayer, "spawn_unit", CheckSpawnUnspawn) --Hook local player spawn to trigger the check.
 mod:hook_safe(RemotePlayer, "set_player_unit", CheckSpawnUnspawn) --Hook remote player spawn to trigger the check.
 mod:hook_safe(RemotePlayer, "destroy", CheckSpawnUnspawn) --Hook remote player disconnection to trigger the check.
+mod:hook_safe(GameModeMapDeus, "local_player_game_starts", DeusMapHack) --Hook deus map player spawn event.
 --There are no bots in keep so no need to hook bot player spawn.
 
 mod:hook(GenericUnitInteractorExtension, "start_interaction", function (func, self, hold_input, interactable_unit, interaction_type, ...) --Requires full replacement to bypass assert for interacting with local (non-replicated) units.
@@ -403,7 +452,7 @@ mod.update = function(dt)
 end
 
 mod.on_game_state_changed = function(status, state) --Reinitialize all tracked locals and unreference loaded packages so they can be potentially unloaded.
---	if state == "StateIngame" and string.match(Managers.state.game_mode:level_key(), "inn_level") and Managers.player.is_server then mod:enable_all_hooks() else mod:disable_all_hooks() end
+	if state == "StateIngame" and (string.match(Managers.state.game_mode:level_key(), "inn_level") or string.match(Managers.state.game_mode:level_key(), "morris_hub") or string.match(Managers.state.game_mode:level_key(), "dlc_morris_map")) and Managers.player.is_server then mod:enable_all_hooks() else mod:disable_all_hooks() end
 	
 	package_names = {}
 	SpawnedUnits = {
@@ -428,6 +477,7 @@ end
 --mod:command("pos", "", mod.posrot) --Development utility, not needed in release.
 mod:network_register("rpc_inhabitants_spawn", function(sender, who, data) mod.spawn_from_host(sender, who, data) end) --RPC to spawn NPC from host data.
 mod:network_register("rpc_inhabitants_unspawn", function(sender, who) mod.unspawn_from_host(sender, who) end) --RPC to unspawn NPC.
+mod:network_register("rpc_inhabitants_deusmap_init", function(sender, who) mod.requestsync(sender, who) end) --RPC to request sync from host.
 
 --Define our own interaction type.
 InteractionDefinitions.ihnabitant = {
